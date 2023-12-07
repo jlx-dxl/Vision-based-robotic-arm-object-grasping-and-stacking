@@ -19,11 +19,11 @@ rospy.init_node('demo')
 
 arm = ArmController()
 
-lims = arm.joint_limits()
-print('Joint Limits:',lims)
+# lims = arm.joint_limits()
+# print('Joint Limits:',lims)
 
-angles = arm.get_positions()
-print('Original position:',angles)
+# angles = arm.get_positions()
+# print('Original position:',angles)
 
 arm.set_arm_speed(0.3)   
 
@@ -36,8 +36,17 @@ arm.set_arm_speed(0.3)
 # angles = arm.get_positions()
 # print('Neutral position:',angles)
 
-q = np.array([-1.2, 1.57, 1.57, -2.07, -1.57, 1.57, 0.7])
-arm.safe_move_to_position(q)
+arm.safe_move_to_position(np.array([0, -1, 0, -1, 0, 2, 1]))
+
+qs = np.array([[0, -0.4, 0, -2, 0, 2.7, 0.707],
+                [0.1, -0.4, 0, -1.5, 0, 2.7, 0.707],
+                [1, 0.0, 0-1, -0, 0, 2.7, 0.707],
+                [2.2, 1.57, -1.57, -1.57, 1.57, 1.57, 0.707]])
+
+# arm.safe_move_to_position(np.array([1.57, 0, 0, -1.2, 0, 2, 1]))
+# q = np.array([0, 0, 0, -2.5, 0, 2, 1])
+for q in qs:
+    arm.safe_move_to_position(q)
 # arm.close_gripper()
 
 # angles = arm.get_positions()

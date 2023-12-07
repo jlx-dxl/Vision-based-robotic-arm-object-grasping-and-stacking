@@ -15,7 +15,7 @@ from lib.IK_position_null import IK
 from lib.calculateFK import FK
 
 from StaticGrabber import StaticGrabber
-# from DynamicGrabber import DynamicGrabber
+from DynamicGrabber import DynamicGrabber
 
 
 if __name__ == "__main__":
@@ -27,13 +27,16 @@ if __name__ == "__main__":
 
     rospy.init_node("team_script")
     arm = ArmController()
-    arm.set_arm_speed(0.3)
+    arm.set_arm_speed(0.5)
     arm.set_gripper_speed(0.2)
     arm.open_gripper()
+    gripper_state = arm.get_gripper_state()
+    print("gripper_state:",gripper_state['position'])
     detector = ObjectDetector()
     ik = IK()
     fk = FK()
     static_grabber = StaticGrabber(detector, arm, team, ik, fk)
+    dynamic_grabber = DynamicGrabber(detector, arm, team, ik, fk)
 
     start_position = np.array([-0.01779206, -0.76012354,  0.01978261, -2.34205014, 0.02984053, 1.54119353+pi/2, 0.75344866])
     arm.safe_move_to_position(start_position) # on your mark!
@@ -46,27 +49,39 @@ if __name__ == "__main__":
     print("****************")
     input("\nWaiting for start... Press ENTER to begin!\n") # get set!
     print("Go!\n") # go!
-
-    # STUDENT CODE HERE
-    # static_grabber.move_to_over()
     
-    # # 2. detect the static blocks
-    # result_list_origin = static_grabber.detect_and_convert()
-    
+    print("grabbing static blocks!!\n")
     for i in range(4):
         
+        # 1. move to an over block position 
         static_grabber.move_to_over(i)
         # 2. detect the static blocks
         result_list = static_grabber.detect_and_convert()
-        
         target_H = static_grabber.find_closest(result_list)
         # 3. grab the closest one
         static_grabber.grab(target_H, i)
         # 4. put to appropriate position
         static_grabber.put(i)
-        # # 5. move back to the start point
-        # static_grabber.move_to_over(i)
+        print("successfully grab " + str(i+1)+ " block!!\n")
         
-    # Move around...
+    print("grabbing dynamic blocks!!\n")
+    for i in range(4):
+        # 1. move to pre pose
+        dynamic_grabber.move_to_pre_pose()
+        # 2. move to wait pose
+        dynamic_grabber.move_to_wait_pose()
+        # 3. wait until grabbed
+        dynamic_grabber.wait_unitl_grabbed()
+        # 4. move to initial pose
+        dynamic_grabber.move_to_initial_pose()
+        # 5. put at the static platform
+        dynamic_grabber.put()
+        # 2. detect the static blocks
+        result_list = static_grabber.detect_and_convert()
+        target_H = static_grabber.find_closest(result_list)
+        # 3. grab the closest one
+        static_grabber.grab(target_H, i)
+        # 4. put to appropriate position
+        static_grabber.put(i+4)
+        print("successfully grab " + str(i+5)+ " block!!\n")
 
-    # END STUDENT CODE

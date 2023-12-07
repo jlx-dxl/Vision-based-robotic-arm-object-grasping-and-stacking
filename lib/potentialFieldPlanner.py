@@ -6,7 +6,6 @@ from lib.calcJacobian import calcJacobian
 from lib.calculateFK import FK
 from lib.detectCollision import detectCollision
 from lib.loadmap import loadmap
-import os
 
 
 class PotentialFieldPlanner:
@@ -14,15 +13,9 @@ class PotentialFieldPlanner:
     # JOINT LIMITS
     lower = np.array([-2.8973,-1.7628,-2.8973,-3.0718,-2.8973,-0.0175,-2.8973])
     upper = np.array([2.8973,1.7628,2.8973,-0.0698,2.8973,3.7525,2.8973])
-    
+
     center = lower + (upper - lower) / 2 # compute middle of range of motion of each joint
     fk = FK()
-
-    # cofficients for the APF
-    zeta = 10      # acttractive force coefficient
-    eta = 0.01   # repulsive force coefficient
-    alpha = 0.02   # step size
-    rho0 = 0.1      # minimum distance
 
     def __init__(self, tol=1e-4, max_steps=500, min_step_size=1e-5):
         """
@@ -49,7 +42,8 @@ class PotentialFieldPlanner:
     # The following functions are provided to you to help you to better structure your code
     # You don't necessarily have to use them. You can also edit them to fit your own situation 
 
-    def attractive_force(self, target, current, att_coff = 1):
+    @staticmethod
+    def attractive_force(target, current):
         """
         Helper function for computing the attactive force between the current position and
         the target position for one joint. Computes the attractive force vector between the 
@@ -66,13 +60,20 @@ class PotentialFieldPlanner:
 
         ## STUDENT CODE STARTS HERE
 
-        att_f = -self.zeta * (current - target)
-
+        att_f = np.zeros((3, 1))
+        #att_f = -5*(current-target)
+        d = np.linalg.norm(current-target)
+        if d > 1:
+        	att_f = -(current-target)/np.abs(current-target)
+        else:
+        	att_f = -10*(current-target)
+        #print(att_f)
         ## END STUDENT CODE
 
         return att_f
 
-    def repulsive_force(self, obstacle, current, unitvec=np.zeros((3,1)), rep_coff = 10, rho0 = 1):
+    @staticmethod
+    def repulsive_force(obstacle, current, unitvec=np.zeros((3,1))):
         """
         Helper function for computing the repulsive force between the current position
         of one joint and one obstacle. Computes the repulsive force vector between the 
@@ -92,19 +93,29 @@ class PotentialFieldPlanner:
         ## STUDENT CODE STARTS HERE
 
         rep_f = np.zeros((3, 1)) 
-        obsCenter = ((obstacle[:3] + obstacle[3:])*0.5).reshape((3, 1))
-        obs_dist = np.linalg.norm(current - obsCenter)
-        
-        if obs_dist >= self.rho0:
-            return rep_f
-        else:
-            rep_f = self.eta * (1 / obs_dist - 1 / self.rho0) * (1 / obs_dist ** 2) * unitvec
+        current = np.array(current).reshape(1,3)
+        obstacle = np.array(obstacle)
+        dist,unit = PotentialFieldPlanner.dist_point2box(current, obstacle)
+        unitvec = unit.T
 
+        d = 0.2
+
+        # print("Dist: ", dist[0])
+        if dist[0]>d:
+        	return rep_f
+        else:
+            if dist[0] < 10e-6:
+                print("Too close to the obstacle.")
+                rep_f = 999*unitvec
+            else:
+        	    rep_f = 2.5*(1/dist-1/d)*(1/dist**2)*unitvec
+        #print(rep_f)
         ## END STUDENT CODE
 
         return rep_f
 
-    def dist_point2box(self, p, box):
+    @staticmethod
+    def dist_point2box(p, box):
         """
         Helper function for the computation of repulsive forces. Computes the closest point
         on the box to a given point 
@@ -150,10 +161,10 @@ class PotentialFieldPlanner:
         unit = distances / dist[:, np.newaxis] * signs
         unit[np.isnan(unit)] = 0
         unit[np.isinf(unit)] = 0
-        
         return dist, unit
 
-    def compute_forces(self, target, obstacle, current):
+    @staticmethod
+    def compute_forces(target, obstacle, current):
         """
         Helper function for the computation of forces on every joints. Computes the sum 
         of forces (attactive, repulsive) on each joint. 
@@ -174,21 +185,19 @@ class PotentialFieldPlanner:
         ## STUDENT CODE STARTS HERE
 
         joint_forces = np.zeros((3, 7)) 
-        target = target.reshape(3, target.shape[0])
-        current = current.reshape(3, current.shape[0])
-        
+        #num_obstacle = obstacle.shape[0]
         for i in range(7):
-            joint_forces[:, i] += self.attractive_force(target[:, i], current[:, i]) 
-            for obs in obstacle:
-                _, unit = self.dist_point2box(current[:, i].reshape((1, 3)), obs)
-                joint_forces[:, i] += self.repulsive_force(obs, current[:, i].reshape((3, 1)), unit).flatten()
+        	cur = current[:,i]
+        	joint_forces[:,i] += PotentialFieldPlanner.attractive_force(target[:,i], cur)
+        	for ob in obstacle:
+        		joint_forces[:,i] -= PotentialFieldPlanner.repulsive_force(ob, cur, unitvec=np.zeros((3,1))).flatten()
 
         ## END STUDENT CODE
 
         return joint_forces
     
-
-    def compute_torques(self, joint_forces, q):
+    @staticmethod
+    def compute_torques(joint_forces, q):
         """
         Helper function for converting joint forces to joint torques. Computes the sum 
         of torques on each joint.
@@ -206,18 +215,18 @@ class PotentialFieldPlanner:
 
         joint_torques = np.zeros((1, 7)) 
         J = calcJacobian(q)
-        Jv = J[0:3]
         
         for i in range(7):
-            torque = Jv[:, 0:i+1].T @ joint_forces[:, i]
-            joint_torques[0, 0:i+1] += torque
+        	tt = J.T[:(i+1),:3]@joint_forces[:,i]
+        	joint_torques[0,:(i+1)] += tt.T
+        
 
         ## END STUDENT CODE
 
         return joint_torques
 
-
-    def q_distance(self, target, current):
+    @staticmethod
+    def q_distance(target, current):
         """
         Helper function which computes the distance between any two
         vectors.
@@ -237,14 +246,14 @@ class PotentialFieldPlanner:
         ## STUDENT CODE STARTS HERE
 
         distance = 0
-        distance = np.linalg.norm(target - current)
+        distance = np.linalg.norm(target-current)
 
         ## END STUDENT CODE
 
         return distance
     
-
-    def compute_gradient(self, q, target, map_struct):
+    @staticmethod
+    def compute_gradient(q, target, map_struct):
         """
         Computes the joint gradient step to move the current joint positions to the
         next set of joint positions which leads to a closer configuration to the goal 
@@ -262,13 +271,17 @@ class PotentialFieldPlanner:
         ## STUDENT CODE STARTS HERE
 
         dq = np.zeros((1, 7))
-        obstacles = map_struct.obstacles
 
-        current_joints, _ = self.fk.forward(q)
-        target_joints, _ = self.fk.forward(target)
-        joint_forces = self.compute_forces(target_joints, obstacles, current_joints)
-        joint_torques = self.compute_torques(joint_forces, q)
-        dq = self.alpha * (joint_torques/np.linalg.norm(joint_torques))
+        joint_positions_1,_ = PotentialFieldPlanner.fk.forward(q)
+        joint_positions_2,_ = PotentialFieldPlanner.fk.forward(target)
+        current = joint_positions_1[:7,:].T
+        target = joint_positions_2[:7,:].T
+        joint_forces = PotentialFieldPlanner.compute_forces(target, map_struct, current)
+        # print("Joint forces: ", joint_forces)
+        torques = PotentialFieldPlanner.compute_torques(joint_forces, q)
+        # print("Joint torques: ", torques)
+        #print(np.linalg.norm(torques))
+        dq = torques/np.linalg.norm(torques)
 
         ## END STUDENT CODE
 
@@ -294,47 +307,48 @@ class PotentialFieldPlanner:
         the starting joint angles and the last row of q should be the goal joint angles. 
         """
 
-        q_path = np.array([]).reshape(0,7)
-        q = start.copy()
-        
-        current_joints, _ = self.fk.forward(start)
-        print("Success start")
+        #q_path = np.array([]).reshape(0,7)
+        obstacles = map_struct.obstacles
+        #obstacles = obstacles.flatten()
+        #print(obstacles.shape)
+        q_path = np.array(start)
+        q = deepcopy(start)
         
         i = 0
 
-        while True:
+        while i < self.max_steps:
+            # print("interation: ", i)
 
             ## STUDENT CODE STARTS HERE
-            q = q.flatten()
-           
-            q_path = np.vstack((q_path, q))
-            i += 1
+            
             # The following comments are hints to help you to implement the planner
             # You don't necessarily have to follow these steps to complete your code 
-            
             # Compute gradient 
             # TODO: this is how to change your joint angles 
-            dq = self.compute_gradient(start, goal, map_struct)
-            
+            dq = self.compute_gradient(q, goal, obstacles)
+            if np.linalg.norm(dq) < 0.01:
+            	dq = np.random.rand(1, 7) * 0.01
+            q_new = q + 0.005*dq.flatten()
+            q_path = np.vstack((q_path, q_new))
             # Termination Conditions
-            if i > self.max_steps or self.q_distance(goal, q) <= self.tol: # TODO: check termination conditions
-                break # exit the while loop if conditions are met!
-            
+
             # YOU NEED TO CHECK FOR COLLISIONS WITH OBSTACLES
             # TODO: Figure out how to use the provided function 
-            obstacles = map_struct.obstacles
-            current_joints, _ = self.fk.forward(q)
-         
+            current_joints, _ = self.fk.forward(q_new)
             for obs in obstacles:
-                dist,_ = self.dist_point2box(current_joints, obs)
+                dist,_ = PotentialFieldPlanner.dist_point2box(current_joints, obs)
                 if dist.any() == 0:
                     print("Collide with the obstacle !!!")
-                    
-            # YOU MAY NEED TO DEAL WITH LOCAL MINIMA HERE
-            # TODO: when detect a local minima, implement a random walk
-            if np.linalg.norm(dq) < self.min_step_size:
-                dq = np.random.rand(1, 7) * 0.1
-            q = q + dq
+
+            	
+            # Handle collision (e.g., skip this step, implement random walk, etc.)
+            distance_to_goal = self.q_distance(goal, q_new)
+            if distance_to_goal <= self.tol: # TODO: check termination conditions
+                break # exit the while loop if conditions are met!
+            i+=1
+            q=q_new
+            #print(i)
+            # print(q)
             ## END STUDENT CODE
 
         return q_path
@@ -350,16 +364,20 @@ if __name__ == "__main__":
     planner = PotentialFieldPlanner()
     
     # inputs 
-    map_struct = loadmap("maps/map1.txt")
-    start = np.array([0,-1,0,-2,0,1.57,0])
-    goal =  np.array([-1.2, 1.57 , 1.57, -2.07, -1.57, 1.57, 0.7])
-    
+    map_struct = loadmap("/maps/map1.txt")
+    #print("obstacle:",map_struct.obstacles)
+    # start = np.array([0,-1,0,-2,0,1.57,0])
+    start = np.array([-0.46536,  0.15595, -0.58923, -1.97628,  0.1004,   2.10404,  1.25607])
+    #goal =  np.array([-1.2, 1.57 , 1.57, -2.07, -1.57, 1.57, 0.7])
+    # goal =  np.array([0, -1 , 1.57, -2.07, -1.57, 1.57, 0.7])
+    goal =  np.array([1.46536,  0.15595, -0.58923, -1.97628,  0.1004,   2.10404,  1.25607])
+    goal_joint,_ = planner.fk.forward(goal)
     # potential field planning
     q_path = planner.plan(deepcopy(map_struct), deepcopy(start), deepcopy(goal))
     
     # show results
-    for i in range(q_path.shape[0]):
-        error = planner.q_distance(q_path[i, :], goal)
-        print('iteration:',i,' q =', q_path[i, :], ' error={error}'.format(error=error))
+    # for i in range(q_path.shape[0]):
+    #     error = PotentialFieldPlanner.q_distance(q_path[i, :6], goal[:6])
+    #     print('iteration:',i,' q =', q_path[i, :], ' error={error}'.format(error=error))
 
     print("q path: ", q_path)

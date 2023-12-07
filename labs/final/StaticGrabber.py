@@ -36,9 +36,13 @@ class StaticGrabber():
 
             self.set_point = np.array([
                                 [-0.0975,  0.2073, -0.1692, -2.0558,  0.0449,  2.2597,  0.4937] ,
-                                [-0.1093,  0.1404, -0.1572, -1.9987,  0.026 ,  2.1373,  0.5065] ,
-                                [-0.1176,  0.0929, -0.148 , -1.9193,  0.0151,  2.0112,  0.514 ] ,
-                                [-0.1224,  0.0656, -0.1426, -1.8168,  0.0098,  1.8818,  0.5177] 
+                                [-0.1087,  0.1437, -0.1578, -2.0025,  0.0268,  2.1443,  0.506 ] ,
+                                [-0.1168,  0.0973, -0.1489, -1.9295,  0.016 ,  2.0256,  0.5133] ,
+                                [-0.1218,  0.0688, -0.1432, -1.8359,  0.0104,  1.904 ,  0.5173] ,
+                                [-0.1241,  0.0593, -0.1411, -1.7201,  0.0085,  1.7789,  0.5186] ,
+                                [-0.1248,  0.0708, -0.1425, -1.578 ,  0.0101,  1.6482,  0.5177] ,
+                                [-0.1261,  0.1076, -0.1469, -1.401 ,  0.0158,  1.5075,  0.5143] ,
+                                [-0.1344,  0.1814, -0.1515, -1.1668,  0.0279,  1.3463,  0.5082] ,
                                 ])
         else:
             # 1 7 joint, plus is close to red des, minus is to static blocks
@@ -61,7 +65,7 @@ class StaticGrabber():
                                 [ 0.1574,  0.0591,  0.1067, -1.7201, -0.0064,  1.7789,  1.0507] ,
                                 [ 0.1628,  0.0705,  0.1026, -1.5781, -0.0072,  1.6482,  1.0512] ,
                                 [ 0.1799,  0.107 ,  0.0881, -1.4011, -0.0094,  1.5076,  1.0524] ,
-                                [ 0.2123,  0.1799,  0.058 , -1.1669, -0.0106,  1.3465,  1.0525] 
+                                [ 0.2123,  0.1799,  0.058 , -1.1669, -0.0106,  1.3465,  1.0525] ,
                                 ])
         self.H_ee_camera = detector.get_H_ee_camera()
         
@@ -145,6 +149,79 @@ class StaticGrabber():
         T_at_blk[:3, 3] = t_w_closest
         return T_at_blk
     
+    ##########################################1206 Wenhao Wang Optimize##############################################
+    
+    def find_axis(self, matrix):
+        # Target vectors
+        target_pos = np.array([0, 0, 1])
+        target_neg = np.array([0, 0, -1])
+
+        # Initialize minimum distance and the corresponding vector index
+        min_distance = float('inf')
+        closest_vector_index = -1
+
+        # Iterate through each column of the matrix
+        for i in range(3):
+            vector = matrix[:, i]
+            distance_pos = np.linalg.norm(vector - target_pos)
+            distance_neg = np.linalg.norm(vector - target_neg)
+
+            # Find the smaller of the two distances (closer to either target_pos or target_neg)
+            distance = min(distance_pos, distance_neg)
+
+            # Update minimum distance and index if current vector is closer
+            if distance < min_distance:
+                min_distance = distance
+                closest_vector_index = i
+
+        # Extract the other two vectors
+        other_vectors = [matrix[:, i]
+                        for i in range(3) if i != closest_vector_index]
+
+        # Choose the vector that is closest to the x axis
+        v1 = other_vectors[0]
+        v2 = other_vectors[1]
+        chosen_axis = None
+        if abs(v1[0]) > abs(v2[0]):
+            chosen_axis = v1
+        else:
+            chosen_axis = v2
+
+        # Choose the vector that is closest to the +x vector
+        if chosen_axis[0] < 0:
+            chosen_axis = -chosen_axis
+
+        x = chosen_axis
+        x[2] = 0
+        normed_x = x / np.linalg.norm(x)
+
+        return normed_x
+
+
+    def find_ee_position(self, T_base_blk):
+        t_base_ee = T_base_blk[:3, 3]
+        return t_base_ee
+
+
+    def find_ee_orientation(self, T_base_blk):
+        R_base_blk = T_base_blk[:3, :3]
+        x = self.find_axis(R_base_blk)
+        z = np.array([0, 0, -1])
+        y = np.cross(z, x)
+        R_base_ee = np.array([x, y, z]).T
+        return R_base_ee
+
+
+    def find_target_ee_pose(self, T_base_blk):
+        t_base_ee = self.find_ee_position(T_base_blk)
+        R_base_ee = self.find_ee_orientation(T_base_blk)
+        T_base_ee = np.eye(4)
+        T_base_ee[:3, :3] = R_base_ee
+        T_base_ee[:3, 3] = t_base_ee
+        return T_base_ee
+    
+    ##########################################1206 Wenhao Wang Optimize##############################################
+    
     
     def solve_ik(self, target, seed):
         print("solving IK ...")
@@ -156,7 +233,7 @@ class StaticGrabber():
         # target_H = self.find_closest(result_list)
         # # print("target_H:", target_H)
 
-        target_H_at = self.solve_pose(target_H)
+        target_H_at = self.find_target_ee_pose(target_H)
         # print("target_H:", target_H)
         target_q_at = self.solve_ik(target_H_at, self.arm.get_positions())
         # print("target_q:", target_q)
@@ -166,7 +243,7 @@ class StaticGrabber():
         # target_q_above[3] += 0.2
         # self.arm.safe_move_to_position(target_q_above)
         self.arm.safe_move_to_position(target_q_at)
-        self.arm.exec_gripper_cmd(0.045, 80)
+        self.arm.exec_gripper_cmd(0.04, 80)
         self.arm.safe_move_to_position(self.over_blk[i,:])
         
     def put(self,i):

@@ -33,7 +33,7 @@ class TreeNode:
     
     
 class RRT:
-    def __init__(self, map, start, goal, n_sample=1000, step_size=1):
+    def __init__(self, map, start, goal, n_sample=1000, step_size=1.5):
         self.map = map
         self.start = start
         self.root = TreeNode(start)
@@ -82,7 +82,7 @@ class RRT:
         return False
 
     def isPathCollided(self, q1, q2):
-        step = 0.05
+        step = 0.2
         dq = q2 - q1
         n_steps = int(np.linalg.norm(dq) / step)
         for i in range(n_steps):

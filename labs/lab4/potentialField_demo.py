@@ -12,9 +12,13 @@ from copy import deepcopy
 
 
 starts = [np.array([0, -1, 0, -2, 0, 1.57, 0]),
-          np.array([0, 0.4, 0, -2.5, 0, 2.7, 0.707])]
+          np.array([0, 0.4, 0, -2.5, 0, 2.7, 0.707]),
+          np.array([-1.2, 1.57, 1.57, -0.1, 1.57, 1.57, 0.707]),
+          np.array([0, 0, 0, -1, 0, 2, 1])]
 goals = [np.array([-1.2, 1.57, 1.57, -2.07, -1.57, 1.57, 0.7]),
-         np.array([1.9, 1.57, -1.57, -1.57, 1.57, 1.57, 0.707])]
+         np.array([1.9, 1.57, -1.57, -1.57, 1.57, 1.57, 0.707]),
+         np.array([1.9, 1.57, -1.57, -1.57, 1.57, 1.57, 0.707]),
+         np.array([0, 0, 0, -2.4, 0, 2, 1])]
 mapNames = ["map1",
             "map2",
             "map3",
@@ -43,7 +47,7 @@ if __name__ == "__main__":
     stop = perf_counter()
     dt = stop - start
     print("Potential Field took {time:2.2f} sec. Path is.".format(time=dt))
-    print(path,"path length is:",path.shape[0])
+    print(path)
     input("Press Enter to Send Path to Arm")
 
     gap = 10
