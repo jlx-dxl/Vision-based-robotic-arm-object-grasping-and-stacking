@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     rospy.init_node("team_script")
     arm = ArmController()
-    arm.set_arm_speed(0.5)
+    arm.set_arm_speed(0.3)
     arm.set_gripper_speed(0.2)
     arm.open_gripper()
     gripper_state = arm.get_gripper_state()
@@ -57,6 +57,10 @@ if __name__ == "__main__":
         static_grabber.move_to_over(i)
         # 2. detect the static blocks
         result_list = static_grabber.detect_and_convert()
+        if len(result_list) == 0:
+            print("redetecting!")
+            i -= 1
+            continue
         target_H = static_grabber.find_closest(result_list)
         # 3. grab the closest one
         static_grabber.grab(target_H, i)
@@ -64,8 +68,11 @@ if __name__ == "__main__":
         static_grabber.put(i)
         print("successfully grab " + str(i+1)+ " block!!\n")
         
+    arm.open_gripper()
+        
     print("grabbing dynamic blocks!!\n")
     for i in range(4):
+        
         # 1. move to pre pose
         dynamic_grabber.move_to_pre_pose()
         # 2. move to wait pose
@@ -76,12 +83,19 @@ if __name__ == "__main__":
         dynamic_grabber.move_to_initial_pose()
         # 5. put at the static platform
         dynamic_grabber.put()
-        # 2. detect the static blocks
-        result_list = static_grabber.detect_and_convert()
-        target_H = static_grabber.find_closest(result_list)
-        # 3. grab the closest one
-        static_grabber.grab(target_H, i)
-        # 4. put to appropriate position
-        static_grabber.put(i+4)
-        print("successfully grab " + str(i+5)+ " block!!\n")
+        for j in range(1):
+            dynamic_grabber.get_over()
+            # 6. detect the static blocks
+            result_list = static_grabber.detect_and_convert()
+            if len(result_list) == 0:
+                print("redetecting!")
+                j -= 1
+                continue
+            target_H = static_grabber.find_closest(result_list)
+            # 7. grab the closest one
+            static_grabber.grab(target_H, i)
+            # 8. put to appropriate position
+            static_grabber.put(i+4)
+            dynamic_grabber.go_to_side()
+            print("successfully grab " + str(i+5)+ " block!!\n")
 

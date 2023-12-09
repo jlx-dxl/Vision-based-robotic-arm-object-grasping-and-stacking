@@ -28,8 +28,8 @@ class DynamicGrabber():
         # 2 joint, plus is bend down, minus is lay up
         # 4 6, plus is look up, minus is look down
             # self.over_blk = np.array([-0.01779206+0.4, -0.76012354+0.65,  0.01978261, -2.34205014+0.4, 0.02984053, 1.54119353+0.35, 0.75344866+0.4])
-            self.pre_pose = np.array([ 0.3271, -1.2986, -1.8317, -1.4963, -0.1884,  1.8406, -0.8989])
-            self.wait_pose = np.array([ 0.6789, -1.4364, -1.7766, -1.1599, -0.3011,  1.8446, -0.7817])
+            self.pre_pose = np.array([ 0.6302, -1.6193, -1.6349, -0.9073, -0.2623,  1.561 , -0.8713])
+            self.wait_pose = np.array([ 0.6772, -1.5709, -1.7079, -1.094 , -0.1791,  1.7912, -0.8543] )
             self.setpoint = np.array([
                                 [-0.0975,  0.2073, -0.1692, -2.0558,  0.0449,  2.2597,  0.4937] ,
                                 [-0.1087,  0.1437, -0.1578, -2.0025,  0.0268,  2.1443,  0.506 ] ,
@@ -48,8 +48,8 @@ class DynamicGrabber():
             # 4 6, plus is look up, minus is look down
             # self.over_blk = np.array([-0.01779206-0.4, -0.76012354+0.65,  0.01978261, -2.34205014+0.4, 0.02984053, 1.54119353+0.35, 0.75344866-0.4])
             # self.over_blk = np.array([-0.01779206-0.4, -0.76012354+0.65+0.1,  0.01978261, -2.34205014+0.4+0.2, 0.02984053, 1.54119353+0.35-0.15, 0.75344866-0.4])
-            self.pre_pose = np.array([ 0.6241,  0.861 ,  0.748 , -1.482 ,  0.4491,  1.7816, -1.2659])
-            self.wait_pose = np.array([ 0.9194,  1.0436,  0.7226, -1.1527,  0.4315,  1.8183, -1.1073])
+            self.pre_pose = np.array([ 0.7445,  1.1475,  0.7385, -1.0787,  0.5487,  1.5665, -1.2138])
+            self.wait_pose = np.array([ 0.8917,  1.1648,  0.7616, -1.0716,  0.583 ,  1.7098, -1.1699] )
             self.setpoint = np.array([
                                 [ 0.2318,  0.2045,  0.0301, -2.056 , -0.0079,  2.2604,  1.0517] ,
                                 [ 0.1986,  0.1423,  0.0645, -2.0026, -0.0109,  2.1445,  1.0538] ,
@@ -77,8 +77,11 @@ class DynamicGrabber():
     def wait_unitl_grabbed(self):
         for i in range(5):
             sleep(6)
-            state = self.arm.exec_gripper_cmd(0.04, 80)
-            if state == True:
+            state = self.arm.exec_gripper_cmd(0.03, 120)
+            gripper_state = self.arm.get_gripper_state()
+            gripper_positions = gripper_state['position']
+            gripper_distance = gripper_positions[0] + gripper_positions[1]
+            if gripper_distance < 0.04:
                 print("nothing grabbed for " + str(i) + " times\n")
                 self.arm.open_gripper()
                 continue
@@ -94,7 +97,17 @@ class DynamicGrabber():
     def put(self):
         self.arm.safe_move_to_position(self.reputpoint)
         self.arm.open_gripper()
+        
+    def get_over(self):
         self.arm.safe_move_to_position(self.redetectpoint)
+        
+    def go_to_side(self):
+        q = self.arm.get_positions()
+        if self.team == 'blue':
+            q[0] -= 0.2
+        else:
+            q[0] += 0.2
+        self.arm.safe_move_to_position(q)
         
     
         

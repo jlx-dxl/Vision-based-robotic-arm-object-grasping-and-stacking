@@ -68,6 +68,15 @@ class StaticGrabber():
                                 [ 0.2123,  0.1799,  0.058 , -1.1669, -0.0106,  1.3465,  1.0525] ,
                                 ])
         self.H_ee_camera = detector.get_H_ee_camera()
+        # if team == 'blue':
+        #     self.H_ee_camera[0,-1] += 0.01
+        #     self.H_ee_camera[1,-1] += 0.01
+        #     self.H_ee_camera[2,-1] += 0.01
+        # else:
+        #     self.H_ee_camera[0,-1] += 0.01
+        #     self.H_ee_camera[1,-1] += 0.01
+        #     self.H_ee_camera[2,-1] += 0.01
+            
         
         
     def move_to_over(self,i):
@@ -243,7 +252,7 @@ class StaticGrabber():
         # target_q_above[3] += 0.2
         # self.arm.safe_move_to_position(target_q_above)
         self.arm.safe_move_to_position(target_q_at)
-        self.arm.exec_gripper_cmd(0.04, 80)
+        self.arm.exec_gripper_cmd(0.03, 120)
         self.arm.safe_move_to_position(self.over_blk[i,:])
         
     def put(self,i):
@@ -251,6 +260,6 @@ class StaticGrabber():
         # self.arm.exec_gripper_cmd(1.0, 80)
         self.arm.open_gripper()
         safe_position = deepcopy(self.set_point[i,:])
-        safe_position[3] += 0.2
-        safe_position[5] -= 0.2
+        safe_position[3] += 0.4
+        safe_position[5] -= 0.4
         self.arm.safe_move_to_position(safe_position)
