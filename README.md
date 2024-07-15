@@ -8,4 +8,4 @@ The project was the final competition of the Upenn course MEAM 5200 Introduction
 
 |     |     |
 | --- | --- |
-|  ![](1.png)  |  ![](2.jpeg)  |
+|  ![](1.png)  | <img src="2.jpeg" alt="GIF 1" style="width: 48%;"> |
