@@ -9,3 +9,5 @@ The project was the final competition of the Upenn course MEAM 5200 Introduction
 |     |     |     |
 | --- | --- | --- |
 |  ![](1.png)  | <img src="2.jpeg" alt="GIF 1" style="width: 48%;"> | <img src="3.jpeg" alt="GIF 1" style="width: 48%;"> |
+
+[See Video Demos here](https://lucien-jia.notion.site/Vision-based-robotic-arm-object-grasping-and-stacking-bc9f2d9708a14cbf9a0297beaa0d002d?pvs=74)
